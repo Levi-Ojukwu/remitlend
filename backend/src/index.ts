@@ -1,6 +1,9 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import { validateEnvVars } from "./config/env.js";
+validateEnvVars();
+
 // Sentry must be initialized before any other imports so it can instrument them
 import { initSentry } from "./config/sentry.js";
 initSentry();
@@ -14,6 +17,10 @@ import {
   stopDefaultCheckerScheduler,
 } from "./services/defaultChecker.js";
 import { eventStreamService } from "./services/eventStreamService.js";
+import {
+  startNotificationCleanupScheduler,
+  stopNotificationCleanupScheduler,
+} from "./services/notificationService.js";
 import { sorobanService } from "./services/sorobanService.js";
 import { validateLoanConfig } from "./config/loanConfig.js";
 
@@ -43,6 +50,9 @@ const server = app.listen(port, () => {
 
   // Start periodic on-chain default checks (if configured)
   startDefaultCheckerScheduler();
+  
+  // Start periodic notification cleanup
+  startNotificationCleanupScheduler();
 });
 
 const shutdown = async (signal: "SIGTERM" | "SIGINT") => {
@@ -57,9 +67,10 @@ const shutdown = async (signal: "SIGTERM" | "SIGINT") => {
 
   stopIndexer();
   stopDefaultCheckerScheduler();
+  stopNotificationCleanupScheduler();
   
-  if (typeof eventStreamService.closeAll === 'function') {
-    eventStreamService.closeAll("Server shutting down");
+  if (typeof (eventStreamService as any).closeAll === 'function') {
+    (eventStreamService as any).closeAll("Server shutting down");
   } else if (typeof eventStreamService.closeAllConnections === 'function') {
     eventStreamService.closeAllConnections("Server shutting down");
   }
